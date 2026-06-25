@@ -128,26 +128,35 @@ async function run() {
 
     // 2. Global Categories Collection
     let categoriesExists = false;
+    let hasCategoryCompanyId = false;
     try {
-      await apiRequest(`/databases/${databaseId}/collections/categories`);
+      const col = await apiRequest(`/databases/${databaseId}/collections/categories`);
       categoriesExists = true;
-      console.log("Collection 'categories' already exists.");
+      hasCategoryCompanyId = (col.attributes || []).some(a => a.key === 'companyId');
+      console.log("Collection 'categories' already exists. hasCategoryCompanyId:", hasCategoryCompanyId);
     } catch (e) {}
 
     if (!categoriesExists) {
       await createCollection('categories', 'Categories');
       await createStringAttribute('categories', 'name', 100, true);
-      await waitForAttributes('categories', ['name']);
+      await createStringAttribute('categories', 'companyId', 255, false);
+      await waitForAttributes('categories', ['name', 'companyId']);
+    } else if (!hasCategoryCompanyId) {
+      await createStringAttribute('categories', 'companyId', 255, false);
+      await waitForAttributes('categories', ['companyId']);
+      console.log("Added 'companyId' attribute to 'categories' collection successfully.");
     }
 
     // 3. Global Platforms Collection
     let platformsExists = false;
     let hasIconAttribute = false;
+    let hasPlatformCompanyId = false;
     try {
       const col = await apiRequest(`/databases/${databaseId}/collections/platforms`);
       platformsExists = true;
       hasIconAttribute = (col.attributes || []).some(a => a.key === 'icon');
-      console.log("Collection 'platforms' already exists. hasIconAttribute:", hasIconAttribute);
+      hasPlatformCompanyId = (col.attributes || []).some(a => a.key === 'companyId');
+      console.log("Collection 'platforms' already exists. hasIconAttribute:", hasIconAttribute, "hasPlatformCompanyId:", hasPlatformCompanyId);
     } catch (e) {}
 
     if (!platformsExists) {
@@ -155,13 +164,24 @@ async function run() {
       await createStringAttribute('platforms', 'categoryName', 100, true);
       await createStringAttribute('platforms', 'name', 100, true);
       await createStringAttribute('platforms', 'icon', 50, false);
-      await waitForAttributes('platforms', ['categoryName', 'name', 'icon']);
+      await createStringAttribute('platforms', 'companyId', 255, false);
+      await waitForAttributes('platforms', ['categoryName', 'name', 'icon', 'companyId']);
       // Add index
       await createIndex('platforms', 'idx_categoryName', 'key', ['categoryName'], ['ASC']);
-    } else if (!hasIconAttribute) {
-      await createStringAttribute('platforms', 'icon', 50, false);
-      await waitForAttributes('platforms', ['icon']);
-      console.log("Added 'icon' attribute to 'platforms' collection successfully.");
+    } else {
+      const attributesToCreate = [];
+      if (!hasIconAttribute) {
+        await createStringAttribute('platforms', 'icon', 50, false);
+        attributesToCreate.push('icon');
+      }
+      if (!hasPlatformCompanyId) {
+        await createStringAttribute('platforms', 'companyId', 255, false);
+        attributesToCreate.push('companyId');
+      }
+      if (attributesToCreate.length > 0) {
+        await waitForAttributes('platforms', attributesToCreate);
+        console.log(`Added attributes [${attributesToCreate.join(', ')}] to 'platforms' collection successfully.`);
+      }
     }
 
     // 4. Seeding default Category & Platforms (idempotent)

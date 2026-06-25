@@ -23,6 +23,7 @@ import {
   createPlatform,
   updatePlatform,
   deletePlatform,
+  seedCompanyDefaults,
 } from "@/lib/appwrite";
 
 // SVGs for platform icons
@@ -363,7 +364,6 @@ export default function DashboardPage() {
         } else {
           setUser(currentUser);
           await loadCompanies();
-          await loadCategoriesList();
         }
       } catch (err) {
         console.error("Auth check failed:", err);
@@ -420,9 +420,10 @@ export default function DashboardPage() {
   };
 
   // Load Categories list from DB
-  const loadCategoriesList = async () => {
+  const loadCategoriesList = async (companyId = selectedCompanyId) => {
+    if (!companyId) return;
     try {
-      const docs = await listCategories();
+      const docs = await listCategories(companyId);
       setCategories(docs);
       if (docs.length > 0) {
         const names = docs.map(d => d.name);
@@ -435,14 +436,35 @@ export default function DashboardPage() {
     }
   };
 
-  // Fetch Platforms when activeCategory changes
+  // Fetch Categories and seed defaults when selectedCompanyId changes
   useEffect(() => {
-    if (!activeCategory) return;
+    if (!selectedCompanyId) {
+      setCategories([]);
+      return;
+    }
+
+    async function initCompanyData() {
+      try {
+        await seedCompanyDefaults(selectedCompanyId);
+        await loadCategoriesList(selectedCompanyId);
+      } catch (err) {
+        console.error("Failed to initialize company categories:", err);
+      }
+    }
+    initCompanyData();
+  }, [selectedCompanyId]);
+
+  // Fetch Platforms when activeCategory or selectedCompanyId changes
+  useEffect(() => {
+    if (!activeCategory || !selectedCompanyId) {
+      setPlatforms([]);
+      return;
+    }
 
     async function loadPlatformsList() {
       setLoadingPlatforms(true);
       try {
-        const docs = await listPlatforms(activeCategory);
+        const docs = await listPlatforms(activeCategory, selectedCompanyId);
         setPlatforms(docs);
       } catch (e) {
         console.error("Failed to load platforms:", e);
@@ -451,7 +473,7 @@ export default function DashboardPage() {
       }
     }
     loadPlatformsList();
-  }, [activeCategory]);
+  }, [activeCategory, selectedCompanyId]);
 
   // Fetch Credentials when company is selected
   useEffect(() => {
@@ -627,11 +649,11 @@ export default function DashboardPage() {
   // ADD CATEGORY (DATABASE SYNC)
   const handleAddCategory = async (e) => {
     e.preventDefault();
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName.trim() || !selectedCompanyId) return;
     const cat = newCategoryName.trim();
     try {
-      await createCategory(cat);
-      await loadCategoriesList();
+      await createCategory(cat, selectedCompanyId);
+      await loadCategoriesList(selectedCompanyId);
       setActiveCategory(cat);
       setNewCategoryName("");
       setShowAddCategory(false);
@@ -645,15 +667,16 @@ export default function DashboardPage() {
   // ADD PLATFORM (DATABASE SYNC)
   const handleAddPlatform = async (e) => {
     e.preventDefault();
-    if (!newPlatformName.trim() || !activeCategory) return;
+    if (!newPlatformName.trim() || !activeCategory || !selectedCompanyId) return;
     const plat = newPlatformName.trim();
     try {
       await createPlatform(
         activeCategory, 
         plat, 
-        selectedIcon === "monogram" ? null : selectedIcon
+        selectedIcon === "monogram" ? null : selectedIcon,
+        selectedCompanyId
       );
-      const docs = await listPlatforms(activeCategory);
+      const docs = await listPlatforms(activeCategory, selectedCompanyId);
       setPlatforms(docs);
       setNewPlatformName("");
       setSelectedIcon("monogram");
@@ -669,7 +692,7 @@ export default function DashboardPage() {
   const handleUpdateCategory = async (e) => {
     e.preventDefault();
     const activeDoc = categories.find(c => c.name === activeCategory);
-    if (!activeDoc || !editCategoryName.trim()) return;
+    if (!activeDoc || !editCategoryName.trim() || !selectedCompanyId) return;
     const newName = editCategoryName.trim();
     if (newName === activeCategory) {
       setShowEditCategory(false);
@@ -677,8 +700,8 @@ export default function DashboardPage() {
     }
     setIsSavingCategory(true);
     try {
-      await updateCategory(activeDoc.$id, activeCategory, newName);
-      await loadCategoriesList();
+      await updateCategory(activeDoc.$id, activeCategory, newName, selectedCompanyId);
+      await loadCategoriesList(selectedCompanyId);
       setActiveCategory(newName);
       setShowEditCategory(false);
       showToast("Category renamed successfully!", "success");
@@ -692,7 +715,7 @@ export default function DashboardPage() {
 
   const handleDeleteCategory = async () => {
     const activeDoc = categories.find(c => c.name === activeCategory);
-    if (!activeDoc) return;
+    if (!activeDoc || !selectedCompanyId) return;
     showConfirm(
       "Delete Category",
       `Are you sure you want to delete category "${activeCategory}"? This will delete all platforms and credentials under this category permanently.`,
@@ -700,8 +723,8 @@ export default function DashboardPage() {
       async () => {
         setIsDeletingCategory(true);
         try {
-          await deleteCategory(activeDoc.$id, activeCategory);
-          await loadCategoriesList();
+          await deleteCategory(activeDoc.$id, activeCategory, selectedCompanyId);
+          await loadCategoriesList(selectedCompanyId);
           showToast("Category deleted successfully.", "success");
         } catch (err) {
           console.error(err);
@@ -817,7 +840,7 @@ export default function DashboardPage() {
   const handleUpdatePlatformSettings = async (e) => {
     e.preventDefault();
     const activePlatDoc = platforms.find(p => p.name === activePlatform);
-    if (!activePlatDoc || !editPlatformName.trim()) return;
+    if (!activePlatDoc || !editPlatformName.trim() || !selectedCompanyId) return;
     const newName = editPlatformName.trim();
     setIsSavingPlatform(true);
     try {
@@ -826,11 +849,12 @@ export default function DashboardPage() {
         activeCategory,
         activePlatform,
         newName,
-        selectedIcon === "monogram" ? null : selectedIcon
+        selectedIcon === "monogram" ? null : selectedIcon,
+        selectedCompanyId
       );
       
       // Reload platforms & credentials list
-      const docs = await listPlatforms(activeCategory);
+      const docs = await listPlatforms(activeCategory, selectedCompanyId);
       setPlatforms(docs);
       
       const credDocs = await listCredentials(selectedCompanyId);
@@ -849,7 +873,7 @@ export default function DashboardPage() {
 
   const handleDeletePlatform = async () => {
     const activePlatDoc = platforms.find(p => p.name === activePlatform);
-    if (!activePlatDoc) return;
+    if (!activePlatDoc || !selectedCompanyId) return;
     showConfirm(
       "Delete Platform",
       `Are you sure you want to delete platform "${activePlatform}" permanently? This will clear its credentials too.`,
@@ -857,8 +881,8 @@ export default function DashboardPage() {
       async () => {
         setIsDeletingPlatform(true);
         try {
-          await deletePlatform(activePlatDoc.$id, activeCategory, activePlatform);
-          const docs = await listPlatforms(activeCategory);
+          await deletePlatform(activePlatDoc.$id, activeCategory, activePlatform, selectedCompanyId);
+          const docs = await listPlatforms(activeCategory, selectedCompanyId);
           setPlatforms(docs);
           
           const credDocs = await listCredentials(selectedCompanyId);

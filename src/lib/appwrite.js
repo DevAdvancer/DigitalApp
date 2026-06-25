@@ -196,31 +196,101 @@ export async function deleteAvatar(avatarId) {
   return await storage.deleteFile("avatars", avatarId);
 }
 
-// GLOBAL CATEGORIES OPERATIONS
-export async function listCategories() {
+// COMPANY SEEDING OPERATIONS
+export async function seedCompanyDefaults(companyId) {
   const db = await getDatabases();
-  if (!db) return [];
-  const response = await db.listDocuments(
+  if (!db) throw new Error("Database service not initialized");
+  const sdk = await getSDK();
+  const { Query, ID } = await sdk;
+
+  // 1. Check if company already has categories
+  const existingCats = await db.listDocuments(
+    APPWRITE_DATABASE_ID,
+    "categories",
+    [Query.equal("companyId", companyId)]
+  );
+
+  if (existingCats.documents.length > 0) {
+    // Already seeded
+    return;
+  }
+
+  // 2. Fetch global categories (where companyId is null/empty/undefined)
+  const allCats = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "categories"
+  );
+  const globalCats = allCats.documents.filter(c => !c.companyId);
+
+  // 3. Fetch global platforms (where companyId is null/empty/undefined)
+  const allPlats = await db.listDocuments(
+    APPWRITE_DATABASE_ID,
+    "platforms"
+  );
+  const globalPlats = allPlats.documents.filter(p => !p.companyId);
+
+  // 4. Create copies for this company
+  for (const globalCat of globalCats) {
+    await db.createDocument(
+      APPWRITE_DATABASE_ID,
+      "categories",
+      ID.unique(),
+      {
+        name: globalCat.name,
+        companyId
+      }
+    );
+
+    const platsToCopy = globalPlats.filter(p => p.categoryName === globalCat.name);
+    for (const plat of platsToCopy) {
+      await db.createDocument(
+        APPWRITE_DATABASE_ID,
+        "platforms",
+        ID.unique(),
+        {
+          categoryName: globalCat.name,
+          name: plat.name,
+          icon: plat.icon || null,
+          companyId
+        }
+      );
+    }
+  }
+}
+
+// GLOBAL CATEGORIES OPERATIONS
+export async function listCategories(companyId) {
+  const db = await getDatabases();
+  if (!db) return [];
+  const sdk = await getSDK();
+  const { Query } = await sdk;
+  
+  if (!companyId) return [];
+
+  const response = await db.listDocuments(
+    APPWRITE_DATABASE_ID,
+    "categories",
+    [Query.equal("companyId", companyId)]
   );
   return response.documents;
 }
 
-export async function createCategory(name) {
+export async function createCategory(name, companyId) {
   const db = await getDatabases();
   if (!db) throw new Error("Database service not initialized");
   const sdk = await getSDK();
   const { ID } = await sdk;
+  const data = { name };
+  if (companyId) data.companyId = companyId;
   return await db.createDocument(
     APPWRITE_DATABASE_ID,
     "categories",
     ID.unique(),
-    { name }
+    data
   );
 }
 
-export async function updateCategory(categoryId, oldName, newName) {
+export async function updateCategory(categoryId, oldName, newName, companyId) {
   const db = await getDatabases();
   if (!db) throw new Error("Database service not initialized");
   const sdk = await getSDK();
@@ -234,11 +304,14 @@ export async function updateCategory(categoryId, oldName, newName) {
     { name: newName }
   );
 
-  // 2. Cascade update platform categoryName
+  // 2. Cascade update platform categoryName (only for this company)
   const platforms = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "platforms",
-    [Query.equal("categoryName", oldName)]
+    [
+      Query.equal("categoryName", oldName),
+      Query.equal("companyId", companyId)
+    ]
   );
   for (const plat of platforms.documents) {
     await db.updateDocument(
@@ -249,11 +322,14 @@ export async function updateCategory(categoryId, oldName, newName) {
     );
   }
 
-  // 3. Cascade update credentials category
+  // 3. Cascade update credentials category (only for this company)
   const credentials = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "credentials",
-    [Query.equal("category", oldName)]
+    [
+      Query.equal("category", oldName),
+      Query.equal("companyId", companyId)
+    ]
   );
   for (const cred of credentials.documents) {
     await db.updateDocument(
@@ -267,7 +343,7 @@ export async function updateCategory(categoryId, oldName, newName) {
   return updated;
 }
 
-export async function deleteCategory(categoryId, categoryName) {
+export async function deleteCategory(categoryId, categoryName, companyId) {
   const db = await getDatabases();
   if (!db) throw new Error("Database service not initialized");
   const sdk = await getSDK();
@@ -280,11 +356,14 @@ export async function deleteCategory(categoryId, categoryName) {
     categoryId
   );
 
-  // 2. Cascade delete platforms under this category
+  // 2. Cascade delete platforms under this category (only for this company)
   const platforms = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "platforms",
-    [Query.equal("categoryName", categoryName)]
+    [
+      Query.equal("categoryName", categoryName),
+      Query.equal("companyId", companyId)
+    ]
   );
   for (const plat of platforms.documents) {
     await db.deleteDocument(
@@ -294,11 +373,14 @@ export async function deleteCategory(categoryId, categoryName) {
     );
   }
 
-  // 3. Cascade delete credentials under this category
+  // 3. Cascade delete credentials under this category (only for this company)
   const credentials = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "credentials",
-    [Query.equal("category", categoryName)]
+    [
+      Query.equal("category", categoryName),
+      Query.equal("companyId", companyId)
+    ]
   );
   for (const cred of credentials.documents) {
     await db.deleteDocument(
@@ -310,27 +392,34 @@ export async function deleteCategory(categoryId, categoryName) {
 }
 
 // GLOBAL PLATFORMS OPERATIONS
-export async function listPlatforms(categoryName) {
+export async function listPlatforms(categoryName, companyId) {
   const db = await getDatabases();
   if (!db) return [];
   const sdk = await getSDK();
   const { Query } = await sdk;
+  
+  if (!companyId) return [];
+
   const response = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "platforms",
-    [Query.equal("categoryName", categoryName)]
+    [
+      Query.equal("categoryName", categoryName),
+      Query.equal("companyId", companyId)
+    ]
   );
   return response.documents;
 }
 
-export async function createPlatform(categoryName, name, icon) {
+export async function createPlatform(categoryName, name, icon, companyId) {
   const db = await getDatabases();
   if (!db) throw new Error("Database service not initialized");
   const sdk = await getSDK();
   const { ID } = await sdk;
   const data = {
     categoryName,
-    name
+    name,
+    companyId
   };
   if (icon) data.icon = icon;
   return await db.createDocument(
@@ -341,7 +430,7 @@ export async function createPlatform(categoryName, name, icon) {
   );
 }
 
-export async function updatePlatform(platformId, categoryName, oldName, newName, icon) {
+export async function updatePlatform(platformId, categoryName, oldName, newName, icon, companyId) {
   const db = await getDatabases();
   if (!db) throw new Error("Database service not initialized");
   const sdk = await getSDK();
@@ -357,14 +446,15 @@ export async function updatePlatform(platformId, categoryName, oldName, newName,
     data
   );
 
-  // If platform name changed, cascade update credentials
+  // If platform name changed, cascade update credentials (only for this company)
   if (oldName !== newName) {
     const credentials = await db.listDocuments(
       APPWRITE_DATABASE_ID,
       "credentials",
       [
         Query.equal("category", categoryName),
-        Query.equal("platform", oldName)
+        Query.equal("platform", oldName),
+        Query.equal("companyId", companyId)
       ]
     );
     for (const cred of credentials.documents) {
@@ -380,7 +470,7 @@ export async function updatePlatform(platformId, categoryName, oldName, newName,
   return updated;
 }
 
-export async function deletePlatform(platformId, categoryName, platformName) {
+export async function deletePlatform(platformId, categoryName, platformName, companyId) {
   const db = await getDatabases();
   if (!db) throw new Error("Database service not initialized");
   const sdk = await getSDK();
@@ -393,13 +483,14 @@ export async function deletePlatform(platformId, categoryName, platformName) {
     platformId
   );
 
-  // 2. Cascade delete credentials for this platform
+  // 2. Cascade delete credentials for this platform (only for this company)
   const credentials = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "credentials",
     [
       Query.equal("category", categoryName),
-      Query.equal("platform", platformName)
+      Query.equal("platform", platformName),
+      Query.equal("companyId", companyId)
     ]
   );
   for (const cred of credentials.documents) {
