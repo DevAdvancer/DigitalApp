@@ -301,6 +301,8 @@ export default function DashboardPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSavingCred, setIsSavingCred] = useState(false);
   const [isClearingCred, setIsClearingCred] = useState(false);
+  const [isEditingCred, setIsEditingCred] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Modal Platform Settings Sub-states
   const [showPlatformSettings, setShowPlatformSettings] = useState(false);
@@ -711,6 +713,13 @@ export default function DashboardPage() {
     );
   };
 
+  // COPY TO CLIPBOARD
+  const handleCopy = (text, label) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    showToast(`${label} copied to clipboard!`, "success");
+  };
+
   // OPEN EDIT MODAL FOR A PLATFORM
   const openCredModal = (platformName) => {
     setActivePlatform(platformName);
@@ -731,6 +740,7 @@ export default function DashboardPage() {
       setCredExpirationDate(doc.expirationDate || "");
       setCredPin(doc.pin || "");
       setShowOptionalFields(!!(doc.customerId || doc.expirationDate || doc.pin));
+      setIsEditingCred(false);
     } else {
       setCredUsername("");
       setCredPassword("");
@@ -738,6 +748,7 @@ export default function DashboardPage() {
       setCredExpirationDate("");
       setCredPin("");
       setShowOptionalFields(false);
+      setIsEditingCred(true);
     }
     setShowPassword(false);
     setShowCredModal(true);
@@ -880,10 +891,20 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-canvas text-body font-sans select-none animate-fadeIn">
+    <div className="flex h-screen w-screen overflow-hidden bg-canvas text-body font-sans select-none animate-fadeIn relative">
       
+      {/* SIDEBAR BACKDROP FOR MOBILE */}
+      {mobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-950/20 backdrop-blur-xs md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="flex w-72 flex-col bg-canvas-soft border-r border-hairline text-body">
+      <aside className={`fixed inset-y-0 left-0 z-45 flex w-72 flex-col bg-canvas-soft border-r border-hairline text-body transition-transform duration-300 md:static md:translate-x-0 ${
+        mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
         {/* Sidebar Header */}
         <div className="flex h-16 items-center justify-between border-b border-hairline px-6 bg-canvas-soft">
           <div className="flex items-center gap-2.5">
@@ -894,6 +915,16 @@ export default function DashboardPage() {
             />
             <span className="font-normal tracking-[-0.04em] text-ink text-base">Digital Marketing Console</span>
           </div>
+          {/* Close button for mobile */}
+          <button
+            onClick={() => setMobileSidebarOpen(false)}
+            className="md:hidden p-1 rounded hover:bg-surface-strong text-muted hover:text-ink transition"
+            aria-label="Close sidebar"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* User profile section */}
@@ -950,7 +981,10 @@ export default function DashboardPage() {
                           ? "bg-surface-card border-hairline text-ink font-medium shadow-sm" 
                           : "border-transparent text-muted hover:bg-surface-strong/20 hover:text-ink"
                       }`}
-                      onClick={() => setSelectedCompanyId(company.$id)}
+                      onClick={() => {
+                        setSelectedCompanyId(company.$id);
+                        setMobileSidebarOpen(false);
+                      }}
                     >
                       <div className="flex items-center gap-2.5 truncate">
                         {/* Company logo/avatar preview or placeholder */}
@@ -986,44 +1020,67 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-canvas">
         
         {/* TOP BAR */}
-        <header className="h-16 border-b border-hairline bg-surface-card flex items-center justify-between px-8">
+        <header className="h-16 border-b border-hairline bg-surface-card flex items-center justify-between px-4 md:px-8">
           {currentCompany ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 truncate">
+              {/* Hamburger Menu button */}
+              <button
+                onClick={() => setMobileSidebarOpen(true)}
+                className="p-1 rounded hover:bg-surface-strong text-muted hover:text-ink md:hidden transition mr-1 shrink-0"
+                aria-label="Open sidebar"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
               {currentCompany.avatarId ? (
                 <img 
                   src={getAvatarPreview(currentCompany.avatarId)} 
                   alt={currentCompany.name} 
-                  className="h-7 w-7 rounded-full object-cover border border-hairline"
+                  className="h-7 w-7 rounded-full object-cover border border-hairline shrink-0"
                 />
               ) : (
-                <div className="h-7 w-7 rounded-full bg-surface-strong text-ink text-[10px] font-bold flex items-center justify-center">
+                <div className="h-7 w-7 rounded-full bg-surface-strong text-ink text-[10px] font-bold flex items-center justify-center shrink-0">
                   {currentCompany.name.slice(0,2).toUpperCase()}
                 </div>
               )}
-              <h2 className="text-base font-normal text-ink tracking-[-0.03em]">{currentCompany.name}</h2>
-              <span className={`rounded-full text-[9px] font-semibold px-2 py-0.5 uppercase tracking-wider ${
+              <h2 className="text-sm md:text-base font-normal text-ink tracking-[-0.03em] truncate max-w-[120px] sm:max-w-none">{currentCompany.name}</h2>
+              <span className={`rounded-full text-[9px] font-semibold px-2 py-0.5 uppercase tracking-wider shrink-0 ${
                 currentCompany.status === 'active' ? 'bg-surface-strong text-ink border border-hairline' : 'bg-canvas text-muted-soft border border-hairline-soft'
               }`}>
                 {currentCompany.status}
               </span>
             </div>
           ) : (
-            <h2 className="text-base font-normal text-ink tracking-[-0.03em]">Console Overview</h2>
+            <div className="flex items-center gap-2">
+              {/* Hamburger Menu button */}
+              <button
+                onClick={() => setMobileSidebarOpen(true)}
+                className="p-1 rounded hover:bg-surface-strong text-muted hover:text-ink md:hidden transition mr-1 shrink-0"
+                aria-label="Open sidebar"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h2 className="text-sm md:text-base font-normal text-ink tracking-[-0.03em]">Console Overview</h2>
+            </div>
           )}
           
-          <div className="flex items-center gap-6 text-[10px] text-muted-soft uppercase tracking-[0.05em]">
+          <div className="flex items-center gap-3 sm:gap-6 text-[10px] text-muted-soft uppercase tracking-[0.05em] shrink-0">
             <button 
               onClick={toggleTheme}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-hairline bg-canvas hover:bg-surface-strong text-ink hover:text-ink transition duration-150 font-sans tracking-normal"
             >
               <span>{theme === "dark" ? "☀️ Light" : "🌙 Dark"}</span>
             </button>
-            <span>Date: {new Date().toLocaleDateString()}</span>
+            <span className="hidden sm:inline">Date: {new Date().toLocaleDateString()}</span>
           </div>
         </header>
 
         {/* WORKSPACE CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
           {!selectedCompanyId ? (
             /* EMPTY STATE */
             <div className="flex h-full flex-col items-center justify-center text-center">
@@ -1047,7 +1104,7 @@ export default function DashboardPage() {
               
               {/* Category tabs list */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-hairline pb-2.5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-hairline pb-3">
                   <div className="flex flex-wrap items-center gap-2">
                     {categories.map((catDoc) => {
                       const cat = catDoc.name;
@@ -1094,7 +1151,7 @@ export default function DashboardPage() {
                       setSelectedIcon("monogram");
                       setShowAddPlatform(true);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded border border-hairline-strong bg-surface-card px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas-soft transition duration-150 shadow-sm"
+                    className="inline-flex items-center justify-center gap-1.5 rounded border border-hairline-strong bg-surface-card px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas-soft transition duration-150 shadow-sm w-full sm:w-auto"
                   >
                     + Add Platform
                   </button>
@@ -1276,7 +1333,7 @@ export default function DashboardPage() {
       {/* MODAL: ADD COMPANY */}
       {showAddCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp">
+          <div className="w-full max-w-sm mx-4 rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Add New Company</h3>
               <button 
@@ -1330,7 +1387,7 @@ export default function DashboardPage() {
       {/* MODAL: ADD CATEGORY */}
       {showAddCategory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp">
+          <div className="w-full max-w-sm mx-4 rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Add Custom Category</h3>
               <button 
@@ -1369,7 +1426,7 @@ export default function DashboardPage() {
       {/* MODAL: EDIT CATEGORY */}
       {showEditCategory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp">
+          <div className="w-full max-w-sm mx-4 rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Edit Category</h3>
               <button 
@@ -1421,7 +1478,7 @@ export default function DashboardPage() {
       {/* MODAL: ADD PLATFORM */}
       {showAddPlatform && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp">
+          <div className="w-full max-w-sm mx-4 rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Add Platform to {activeCategory}</h3>
               <button 
@@ -1506,7 +1563,7 @@ export default function DashboardPage() {
       {/* MODAL: CREDENTIAL DETAILS */}
       {showCredModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl">
+          <div className="w-full max-w-md mx-4 rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl">
             <div className="flex items-center justify-between mb-5 border-b border-hairline-soft pb-3">
               <div className="flex items-center gap-2">
                 <div className="h-7 w-7 rounded bg-canvas-soft flex items-center justify-center shrink-0 border border-hairline">
@@ -1628,6 +1685,121 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </form>
+            ) : !isEditingCred ? (
+              <div className="space-y-4 animate-fadeIn">
+                {/* Username Field */}
+                <div className="flex flex-col gap-1.5 p-3 rounded-md border border-hairline bg-canvas-soft">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Username / Email</span>
+                    {credUsername && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(credUsername, "Username")}
+                        className="text-[10px] text-primary hover:underline font-bold transition"
+                      >
+                        Copy
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-xs text-ink font-mono break-all">{credUsername || "—"}</span>
+                </div>
+
+                {/* Password Field */}
+                <div className="flex flex-col gap-1.5 p-3 rounded-md border border-hairline bg-canvas-soft">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Password</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-[10px] text-muted hover:text-ink font-bold transition"
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                      {credPassword && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(credPassword, "Password")}
+                          className="text-[10px] text-primary hover:underline font-bold transition"
+                        >
+                          Copy
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs text-ink font-mono tracking-wide">
+                    {showPassword ? credPassword : "••••••••"}
+                  </span>
+                </div>
+
+                {/* Optional Fields */}
+                {(credCustomerId || credExpirationDate || credPin) && (
+                  <div className="border-t border-hairline-soft pt-3 mt-2 space-y-3">
+                    <h4 className="text-[10px] font-semibold text-muted uppercase tracking-wider">Details</h4>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {credCustomerId && (
+                        <div className="flex flex-col gap-1.5 p-2.5 rounded border border-hairline bg-canvas-soft">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-semibold text-muted-soft uppercase">Customer ID</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(credCustomerId, "Customer ID")}
+                              className="text-[9px] text-primary hover:underline font-bold transition"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <span className="text-xs text-ink font-mono truncate">{credCustomerId}</span>
+                        </div>
+                      )}
+
+                      {credExpirationDate && (
+                        <div className="flex flex-col gap-1.5 p-2.5 rounded border border-hairline bg-canvas-soft">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-semibold text-muted-soft uppercase">Expiration Date</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(credExpirationDate, "Expiration Date")}
+                              className="text-[9px] text-primary hover:underline font-bold transition"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <span className="text-xs text-ink font-mono truncate">{credExpirationDate}</span>
+                        </div>
+                      )}
+
+                      {credPin && (
+                        <div className="flex flex-col gap-1.5 p-2.5 rounded border border-hairline bg-canvas-soft">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-semibold text-muted-soft uppercase">PIN</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(credPin, "PIN")}
+                              className="text-[9px] text-primary hover:underline font-bold transition"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <span className="text-xs text-ink font-mono truncate">{credPin}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Edit Button */}
+                <div className="flex items-center justify-between pt-4 border-t border-hairline">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingCred(true)}
+                    className="w-full rounded-md bg-primary hover:bg-primary-active px-5 py-2.5 text-xs font-bold text-white transition duration-150 shadow-sm text-center cursor-pointer"
+                  >
+                    Edit Credentials
+                  </button>
+                </div>
+              </div>
             ) : (
               <form onSubmit={handleSaveCred} className="space-y-4">
                 <div>
@@ -1735,13 +1907,28 @@ export default function DashboardPage() {
                     <div />
                   )}
 
-                  <button 
-                    type="submit"
-                    disabled={isSavingCred}
-                    className="rounded-md bg-primary hover:bg-primary-active px-5 py-2 text-xs font-medium text-white transition duration-150 disabled:opacity-50 shadow-sm"
-                  >
-                    {isSavingCred ? "Saving..." : "Save Credentials"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Add Cancel button to return to View Mode if credentials already exist */}
+                    {credentials.some(c => c.category === activeCategory && c.platform === activePlatform) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingCred(false);
+                          setShowPassword(false);
+                        }}
+                        className="rounded border border-hairline bg-canvas hover:bg-surface-strong px-4 py-2 text-xs font-medium text-ink transition duration-150 shadow-sm cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button 
+                      type="submit"
+                      disabled={isSavingCred}
+                      className="rounded-md bg-primary hover:bg-primary-active px-5 py-2 text-xs font-medium text-white transition duration-150 disabled:opacity-50 shadow-sm cursor-pointer"
+                    >
+                      {isSavingCred ? "Saving..." : "Save Credentials"}
+                    </button>
+                  </div>
                 </div>
               </form>
             )}
@@ -1766,7 +1953,7 @@ export default function DashboardPage() {
       {/* CUSTOM CONFIRMATION MODAL POPUP */}
       {confirmModal.show && (
         <div className="fixed inset-0 z-[50] flex items-center justify-center bg-slate-950/20 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl space-y-5">
+          <div className="w-full max-w-sm mx-4 rounded-lg bg-surface-card p-6 border border-hairline animate-slideUp shadow-xl space-y-5">
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">{confirmModal.title}</h3>
               <p className="text-xs text-muted leading-relaxed">{confirmModal.message}</p>
