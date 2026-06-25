@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f7f7f4;
+  --color-canvas-soft: #fafaf7;
+  --color-surface-card: #ffffff;
+  --color-surface-strong: #e6e5e0;
+  --color-primary: #f54e00;
+  --color-primary-active: #d04200;
+  --color-ink: #26251e;
+  --color-body: #5a5852;
+  --color-hairline: #e6e5e0;
+  --color-hairline-soft: #efeee8;
+  --color-hairline-strong: #cfcdc4;
+
+  --animate-fadeIn: fadeIn 0.3s ease-out;
+  --animate-slideUp: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+/* Inverted Editorial Dark Mode */
+.dark {
+  --color-canvas: #141412;
+  --color-canvas-soft: #1c1c19;
+  --color-surface-card: #1c1c19;
+  --color-surface-strong: #2c2b26;
+  --color-ink: #f7f7f4;
+  --color-body: #a09e95;
+  --color-hairline: #2c2b26;
+  --color-hairline-soft: #252420;
+  --color-hairline-strong: #403f38;
+}
+
+summary::-webkit-details-marker {
+  display: none
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-body);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Add smooth transitions to elements when theme toggles */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
