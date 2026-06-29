@@ -440,6 +440,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!selectedCompanyId) {
       setCategories([]);
+      setActiveCategory("Social Media");
       return;
     }
 
@@ -466,6 +467,8 @@ export default function DashboardPage() {
       try {
         const docs = await listPlatforms(activeCategory, selectedCompanyId);
         setPlatforms(docs);
+        // Reset activePlatform when switching companies to prevent accidental cross-company deletions
+        setActivePlatform("");
       } catch (e) {
         console.error("Failed to load platforms:", e);
       } finally {
@@ -500,6 +503,11 @@ export default function DashboardPage() {
       }
     }
     loadCompanyCredentials();
+
+    // Reset platform-related states when company changes
+    setActivePlatform("");
+    setShowCredModal(false);
+    setShowPlatformSettings(false);
   }, [selectedCompanyId, companies]);
 
   // Create Company

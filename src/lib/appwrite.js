@@ -126,7 +126,7 @@ export async function listCompanies() {
   const response = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "companies",
-    [Query.orderDesc("createdAt")]
+    [Query.orderAsc("createdAt")]
   );
   return response.documents;
 }
@@ -397,7 +397,7 @@ export async function listPlatforms(categoryName, companyId) {
   if (!db) return [];
   const sdk = await getSDK();
   const { Query } = await sdk;
-  
+
   if (!companyId) return [];
 
   const response = await db.listDocuments(
@@ -408,7 +408,10 @@ export async function listPlatforms(categoryName, companyId) {
       Query.equal("companyId", companyId)
     ]
   );
-  return response.documents;
+
+  // Ensure all returned platforms belong to this company
+  const filteredPlatforms = response.documents.filter(platform => platform.companyId === companyId);
+  return filteredPlatforms;
 }
 
 export async function createPlatform(categoryName, name, icon, companyId) {
@@ -476,14 +479,25 @@ export async function deletePlatform(platformId, categoryName, platformName, com
   const sdk = await getSDK();
   const { Query } = await sdk;
 
-  // 1. Delete platform document
+  // 1. Verify platform belongs to this company before deletion
+  const platform = await db.getDocument(
+    APPWRITE_DATABASE_ID,
+    "platforms",
+    platformId
+  );
+
+  if (platform.companyId !== companyId) {
+    throw new Error("Platform does not belong to this company");
+  }
+
+  // 2. Delete platform document
   await db.deleteDocument(
     APPWRITE_DATABASE_ID,
     "platforms",
     platformId
   );
 
-  // 2. Cascade delete credentials for this platform (only for this company)
+  // 3. Cascade delete credentials for this platform (only for this company)
   const credentials = await db.listDocuments(
     APPWRITE_DATABASE_ID,
     "credentials",
