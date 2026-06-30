@@ -313,9 +313,6 @@ export default function DashboardPage() {
   const [isSavingPlatform, setIsSavingPlatform] = useState(false);
   const [isDeletingPlatform, setIsDeletingPlatform] = useState(false);
 
-  // Theme state
-  const [theme, setTheme] = useState("light");
-
   // Custom Popup Alert / Toast state
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   
@@ -376,11 +373,13 @@ export default function DashboardPage() {
     checkAuth();
   }, [router]);
 
-  // Sync initial theme
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
+  // Lazy initial state for theme
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    }
+    return 'light';
+  });
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -1204,7 +1203,7 @@ export default function DashboardPage() {
                   <div className="rounded-lg border border-dashed border-hairline bg-surface-card p-12 text-center">
                     <h4 className="font-normal text-ink text-sm">No platforms registered</h4>
                     <p className="text-xs text-muted mt-1 max-w-xs mx-auto">
-                      There are no platforms in this category. Click "+ Add Platform" to create one.
+                      There are no platforms in this category. Click &quot;+ Add Platform&quot; to create one.
                     </p>
                   </div>
                 ) : (
