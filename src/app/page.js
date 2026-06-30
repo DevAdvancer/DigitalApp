@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   getCurrentUser,
   logout,
@@ -940,10 +941,13 @@ export default function DashboardPage() {
         {/* Sidebar Header */}
         <div className="flex h-16 items-center justify-between border-b border-hairline px-6 bg-canvas-soft">
           <div className="flex items-center gap-2.5">
-            <img 
+            <Image 
               src="/logo.png" 
               alt="Digital Marketing Logo" 
+              width={28}
+              height={28}
               className="h-7 w-7 rounded object-cover shadow-sm border border-hairline-soft"
+              priority
             />
             <span className="font-normal tracking-[-0.04em] text-ink text-base">Digital Marketing Console</span>
           </div>
@@ -1021,9 +1025,11 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2.5 truncate">
                         {/* Company logo/avatar preview or placeholder */}
                         {company.avatarId ? (
-                          <img 
+                          <Image 
                             src={getAvatarPreview(company.avatarId)} 
                             alt={company.name} 
+                            width={18}
+                            height={18}
                             className="h-4.5 w-4.5 rounded-full object-cover shrink-0 border border-hairline-soft"
                           />
                         ) : (
@@ -1067,9 +1073,11 @@ export default function DashboardPage() {
               </button>
 
               {currentCompany.avatarId ? (
-                <img 
+                <Image 
                   src={getAvatarPreview(currentCompany.avatarId)} 
                   alt={currentCompany.name} 
+                  width={28}
+                  height={28}
                   className="h-7 w-7 rounded-full object-cover border border-hairline shrink-0"
                 />
               ) : (
@@ -1253,9 +1261,11 @@ export default function DashboardPage() {
                   
                   <div className="relative group shrink-0">
                     {currentCompany.avatarId ? (
-                      <img 
+                      <Image 
                         src={getAvatarPreview(currentCompany.avatarId)} 
                         alt={currentCompany.name} 
+                        width={96}
+                        height={96}
                         className="h-24 w-24 rounded-full object-cover border-2 border-hairline-strong shadow-sm"
                       />
                     ) : (

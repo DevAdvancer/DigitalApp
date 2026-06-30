@@ -46,12 +46,10 @@ summary::-webkit-details-marker {
 body {
   background-color: var(--color-canvas);
   color: var(--color-body);
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Add smooth transitions to elements when theme toggles */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+/* Font family setup for next/font */
+body {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
